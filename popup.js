@@ -1,3 +1,35 @@
+// ---- Stable UI state + helpers ----
+if (!window.__tt_state) {
+  window.__tt_state = { editMode: false, filter: "", renderIds: [] };
+}
+const state = window.__tt_state;
+
+function fmtDate(ts) {
+  try { return new Date(ts).toLocaleString(); } catch { return String(ts ?? ""); }
+}
+
+function matchesQuery(item, q) {
+  if (!q) return true;
+  const s = q.toLowerCase();
+  return (
+    (item.title || "").toLowerCase().includes(s) ||
+    (item.domain || "").toLowerCase().includes(s) ||
+    (item.url || "").toLowerCase().includes(s)
+  );
+}
+
+function sortList(list, mode /*, manualOrder */) {
+  const arr = [...list];
+  switch (mode) {
+    case "oldest": return arr.sort((a, b) => a.addedAt - b.addedAt);
+    case "title":  return arr.sort((a, b) => (a.title || "").localeCompare(b.title || ""));
+    case "domain": return arr.sort((a, b) => (a.domain || "").localeCompare(b.domain || ""));
+    case "url":    return arr.sort((a, b) => (a.url || "").localeCompare(b.url || ""));
+    case "newest":
+    default:        return arr.sort((a, b) => b.addedAt - a.addedAt);
+  }
+}
+
 async function setItemExpiry(id, choice, settings) {
   const { tempTabs } = await chrome.storage.local.get(["tempTabs"]);
   const list = (tempTabs || []).slice();
@@ -68,10 +100,17 @@ async function load() {
 }
 
 function render(list, { editMode = false, settings, sortMode, totalLive }) {
-  const main = document.getElementById("list");
-  if (!main) return;
+  const ul = document.getElementById("list");
+  if (!ul) return;
 
-  main.innerHTML = "";
+  ul.innerHTML = "";
+  state.renderIds = list.map(i => i.id);
+
+  // Update count if present
+  const countEl = document.getElementById("count");
+  if (countEl) {
+    countEl.textContent = `${list.length}/${totalLive} shown • cap 500`;
+  }
 
   for (const item of list) {
     const li = document.createElement("li");
@@ -81,18 +120,36 @@ function render(list, { editMode = false, settings, sortMode, totalLive }) {
     const isExpired = !!(item.expiresAt && item.expiresAt <= Date.now());
     if (isExpired) li.classList.add("expired");
 
-    // ... (other rendering code for item)
+    // Left column: drag handle placeholder (only visible in manual+edit in your full UI)
+    const handle = document.createElement("div");
+    handle.className = "handle";
+    handle.textContent = (editMode && sortMode === "manual") ? "⋮⋮" : "";
+    li.appendChild(handle);
+
+    // Middle column: main content (title + meta)
+    const main = document.createElement("div");
+    const a = document.createElement("a");
+    a.href = item.url;
+    a.textContent = item.title || item.url || "(no title)";
+    a.target = "_blank";
+    main.appendChild(a);
 
     const meta = document.createElement("div");
     meta.className = "meta";
     const hasExpiry = typeof item.expiresAt === "number" && item.expiresAt > 0;
     let expText = hasExpiry ? `expires ${new Date(item.expiresAt).toLocaleString()}` : "no expiry";
     if (isExpired) expText += " • Expired";
-    meta.textContent = `${item.domain} • added ${fmtDate(item.addedAt)} • ${expText}`;
+    meta.textContent = `${item.domain || ""} • added ${fmtDate(item.addedAt)} • ${expText}`;
     main.appendChild(meta);
 
-    // Append li or other elements as needed
-    main.appendChild(li);
+    li.appendChild(main);
+
+    // Right column: actions container (empty for now; your full controls can plug in here)
+    const actions = document.createElement("div");
+    actions.className = "actions-cell";
+    li.appendChild(actions);
+
+    ul.appendChild(li);
   }
 }
 
