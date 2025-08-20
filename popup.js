@@ -46,26 +46,19 @@ function matchesQuery(item, q) {
 }
 
 function getExpiryPreset(item, settings) {
-  // If there's no expiry, it's pinned
   if (typeof item.expiresAt !== "number" || item.expiresAt <= 0) return "never";
-
   const now = Date.now();
   const remaining = item.expiresAt - now;
-
-  const H = 3600000; // 1 hour
+  const H = 3600000;
   const PRESETS = [1, 2, 6, 12, 24, 48, 72, 168];
-  const TOL = 5 * 60 * 1000; // 5 minutes tolerance
-
+  const TOL = 5 * 60 * 1000;
   for (const hrs of PRESETS) {
     if (Math.abs(remaining - hrs * H) <= TOL) return String(hrs);
   }
-
-  // Otherwise treat as default (settings-based) or some custom value
   return "default";
 }
 
 function render(list, { editMode = false, settings, sortMode, totalLive }) {
-  // ensure width is applied from settings
   applyPopupWidth(settings);
 
   const ul = document.getElementById("list");
@@ -121,7 +114,6 @@ function render(list, { editMode = false, settings, sortMode, totalLive }) {
     const hasExpiry = typeof item.expiresAt === "number" && item.expiresAt > 0;
     const expText = hasExpiry ? `expires ${new Date(item.expiresAt).toLocaleString()}` : "no expiry";
     meta.textContent = `${item.domain} • added ${fmtDate(item.addedAt)} • ${expText}`;
-
     main.appendChild(meta);
 
     const actions = document.createElement("div");
@@ -135,7 +127,6 @@ function render(list, { editMode = false, settings, sortMode, totalLive }) {
         down.addEventListener("click", () => move(item.id, +1));
       }
 
-      // Per-item expiry selector (dark themed)
       const sel = document.createElement("select");
       sel.className = "btn-select";
       sel.title = "Expiry for this item";
@@ -151,7 +142,6 @@ function render(list, { editMode = false, settings, sortMode, totalLive }) {
         <option value="168">7 days</option>
         <option value="never">Never</option>
       `;
-      // Initial value prefers stored preset if available, otherwise derive from expiresAt
       const initialPreset = (item.expiryPreset && typeof item.expiryPreset === "string")
         ? item.expiryPreset
         : getExpiryPreset(item, settings);
@@ -224,10 +214,10 @@ async function setItemExpiry(id, choice, settings) {
   const defHours = (settings && settings.retentionHours) || 24;
 
   if (choice === "never") {
-    delete list[idx].expiresAt; // pinned: no auto-expiry
+    delete list[idx].expiresAt;
     list[idx].expiryPreset = "never";
   } else if (choice === "default") {
-    list[idx].expiresAt = now + defHours * 3600000; // from now using default hours
+    list[idx].expiresAt = now + defHours * 3600000;
     list[idx].expiryPreset = "default";
   } else {
     const hrs = Number(choice);
@@ -249,6 +239,19 @@ async function clearAll() {
   if (!confirm("Clear all saved items?")) return;
   await chrome.storage.local.set({ tempTabs: [], manualOrder: [] });
   await load();
+}
+
+// NEW: Export to JSON
+async function exportToJson() {
+  const { tempTabs } = await chrome.storage.local.get(["tempTabs"]);
+  const data = tempTabs || [];
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `tempTabs_export_${new Date().toISOString().slice(0,19)}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
 }
 
 async function load() {
@@ -288,4 +291,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     state.filter = e.target.value.trim();
     await load();
   });
+  // hook export button
+  const exportBtn = document.getElementById("exportBtn");
+  if (exportBtn) exportBtn.addEventListener("click", exportToJson);
 });
