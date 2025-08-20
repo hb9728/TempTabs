@@ -45,6 +45,29 @@ function matchesQuery(item, q) {
   );
 }
 
+function getExpiryPreset(item, settings) {
+  // If there's no expiry, it's pinned
+  if (typeof item.expiresAt !== "number" || item.expiresAt <= 0) return "never";
+
+  const now = Date.now();
+  const remaining = item.expiresAt - now;
+
+  // Preset durations
+  const H = 3600000;       // 1 hour
+  const D = 86400000;      // 1 day
+  const W = 604800000;     // 1 week
+
+  // Tolerance to account for render delays / small drift
+  const TOL = 5 * 60 * 1000; // 5 minutes
+
+  if (Math.abs(remaining - H) <= TOL) return "1h";
+  if (Math.abs(remaining - D) <= TOL) return "1d";
+  if (Math.abs(remaining - W) <= TOL) return "1w";
+
+  // Otherwise treat as default (settings-based) or a custom value
+  return "default";
+}
+
 function render(list, { editMode = false, settings, sortMode, totalLive }) {
   // ensure width is applied from settings
   applyPopupWidth(settings);
@@ -127,12 +150,8 @@ function render(list, { editMode = false, settings, sortMode, totalLive }) {
         <option value="1w">1 week</option>
         <option value="never">Never</option>
       `;
-      // Initial value
-      if (typeof item.expiresAt !== "number" || item.expiresAt <= 0) {
-        sel.value = "never";
-      } else {
-        sel.value = "default";
-      }
+      // Initial value based on current expiresAt (sticky to 1h/1d/1w when chosen)
+      sel.value = getExpiryPreset(item, settings);
       sel.addEventListener("change", async (e) => {
         await setItemExpiry(item.id, e.target.value, settings);
         await load();
