@@ -225,6 +225,7 @@ async function setItemExpiry(id, choice, settings) {
 
   if (choice === "never") {
     delete list[idx].expiresAt; // pinned: no auto-expiry
+    list[idx].expiryPreset = "never";
   } else if (choice === "default") {
     list[idx].expiresAt = now + defHours * 3600000; // from now using default hours
     list[idx].expiryPreset = "default";
