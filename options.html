@@ -1,0 +1,78 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>TempTabs – Settings</title>
+  <style>
+    body { font: 14px/1.4 system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin: 0; background: #0b0c0f; color: #e8ecf3; }
+    .wrap { max-width: 720px; margin: 0 auto; padding: 24px; }
+    .card { background: #171922; border: 1px solid #222636; border-radius: 12px; padding: 16px; margin-top: 16px; }
+    label { display: inline-flex; gap: 8px; align-items: center; }
+    select { background:#121624; color:#e8ecf3; border:1px solid #2e3550; border-radius:8px; padding:6px 8px; }
+    .muted { color: #8a92a6; }
+    .row { display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap: wrap; }
+    .btn { background:#23283a; border:1px solid #2e3550; color:#e8ecf3; border-radius:8px; padding:6px 10px; cursor:pointer; }
+    .btn:hover { border-color:#6aa1ff; }
+    .danger { border-color:#70343b; color:#ffd2d2; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>TempTabs Settings</h1>
+
+    <div class="card">
+      <div class="row">
+        <label>
+          Default retention
+          <select id="retention">
+            <option value="1">1 hour</option>
+            <option value="2">2 hours</option>
+            <option value="6">6 hours</option>
+            <option value="12">12 hours</option>
+            <option value="24">24 hours (default)</option>
+            <option value="48">48 hours</option>
+            <option value="72">72 hours</option>
+            <option value="168">7 days</option>
+          </select>
+        </label>
+        <label>
+          Popup width
+          <select id="popupWidth">
+            <option value="340">340 px</option>
+            <option value="360">360 px</option>
+            <option value="380">380 px</option>
+            <option value="400">400 px (default)</option>
+            <option value="420">420 px</option>
+            <option value="450">450 px</option>
+            <option value="480">480 px</option>
+          </select>
+        </label>
+        <button id="save" class="btn">Save</button>
+      </div>
+      <p class="muted">Newly added items will expire after this duration. The popup width takes effect the next time you open the popup.</p>
+    </div>
+
+    <div class="card">
+      <div class="row">
+        <div>
+          <strong>Storage</strong>
+          <div class="muted">Limit: 500 items. Oldest items are dropped when full.</div>
+        </div>
+        <button id="export" class="btn">Export JSON</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="row">
+        <div>
+          <strong>Danger zone</strong>
+          <div class="muted">This deletes all saved temp tabs.</div>
+        </div>
+        <button id="wipe" class="btn danger">Delete all</button>
+      </div>
+    </div>
+  </div>
+  <script src="options.js"></script>
+</body>
+</html>

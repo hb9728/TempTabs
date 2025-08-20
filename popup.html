@@ -1,0 +1,47 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>TempTabs</title>
+  <link rel="stylesheet" href="popup.css" />
+</head>
+<body>
+  <div class="wrap">
+    <header class="top">
+      <div class="title">TempTabs</div>
+      <div class="actions">
+        <button id="addBtn" title="Add current tab" class="icon">＋</button>
+        <button id="editToggle" title="Edit / reorder" class="icon">✎</button>
+        <button id="refreshBtn" title="Refresh" class="icon">⟳</button>
+        <a id="settingsLink" title="Settings" class="icon" href="#">⚙︎</a>
+      </div>
+    </header>
+
+    <div class="controls">
+      <label>
+        Sort
+        <select id="sortSelect">
+          <option value="newest">Added (newest)</option>
+          <option value="oldest">Added (oldest)</option>
+          <option value="title">Title A–Z</option>
+          <option value="domain">Domain A–Z</option>
+          <option value="url">URL A–Z</option>
+          <option value="manual">Manual (custom)</option>
+        </select>
+      </label>
+      <input id="searchInput" type="search" placeholder="Search title/domain/url" aria-label="Search" />
+      <span id="count"></span>
+    </div>
+
+    <ul id="list" class="list" aria-live="polite"></ul>
+
+    <footer class="bottom">
+      <button id="clearExpired" class="link">Clear expired</button>
+      <button id="clearAll" class="link danger">Clear all</button>
+    </footer>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

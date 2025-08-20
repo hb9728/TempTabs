@@ -1,0 +1,16 @@
+{
+  "manifest_version": 3,
+  "name": "TempTabs — working-memory bookmarks",
+  "version": "1.0.0",
+  "description": "Quickly stash the current tab (or a link) to a temporary list you can sort, edit, and auto-expire.",
+  "permissions": ["storage", "contextMenus", "tabs", "alarms"],
+  "host_permissions": ["<all_urls>"],
+  "action": {
+    "default_title": "TempTabs",
+    "default_popup": "popup.html"
+  },
+  "options_page": "options.html",
+  "background": {
+    "service_worker": "background.js"
+  }
+}
