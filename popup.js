@@ -99,74 +99,14 @@ function render(list, { editMode = false, settings, sortMode, totalLive }) {
 
     const meta = document.createElement("div");
     meta.className = "meta";
-    const exp = item.expiresAt ? `expires ${new Date(item.expiresAt).toLocaleString()}` : "";
-    meta.textContent = `${item.domain} • added ${fmtDate(item.addedAt)}${exp ? " • " + exp : ""}`;
-
-    if (editMode) {
-      const select = document.createElement("select");
-      const options = [
-        { label: "Default", value: "default" },
-        { label: "1 hour", value: "1h" },
-        { label: "1 day", value: "1d" },
-        { label: "1 week", value: "1w" },
-        { label: "Never", value: "never" }
-      ];
-      for (const opt of options) {
-        const optionEl = document.createElement("option");
-        optionEl.value = opt.value;
-        optionEl.textContent = opt.label;
-        select.appendChild(optionEl);
-      }
-
-      // Determine select value based on item.expiresAt
-      if (item.expiresAt == null) {
-        select.value = "never";
-      } else {
-        const now = Date.now();
-        const diff = item.expiresAt - now;
-        if (diff <= 0) {
-          select.value = "default";
-        } else if (diff <= 3600000) { // 1 hour
-          select.value = "1h";
-        } else if (diff <= 86400000) { // 1 day
-          select.value = "1d";
-        } else if (diff <= 604800000) { // 1 week
-          select.value = "1w";
-        } else {
-          select.value = "default";
-        }
-      }
-
-      select.addEventListener("change", async (e) => {
-        let newExpiresAt = null;
-        const val = e.target.value;
-        const now = Date.now();
-        switch(val) {
-          case "default":
-            newExpiresAt = null;
-            break;
-          case "1h":
-            newExpiresAt = now + 3600000;
-            break;
-          case "1d":
-            newExpiresAt = now + 86400000;
-            break;
-          case "1w":
-            newExpiresAt = now + 604800000;
-            break;
-          case "never":
-            newExpiresAt = null;
-            break;
-        }
-        await updateExpiry(item.id, newExpiresAt);
-      });
-
-      meta.appendChild(select);
-    }
+    const hasExpiry = typeof item.expiresAt === "number" && item.expiresAt > 0;
+    const expText = hasExpiry ? `expires ${new Date(item.expiresAt).toLocaleString()}` : "no expiry";
+    meta.textContent = `${item.domain} • added ${fmtDate(item.addedAt)} • ${expText}`;
 
     main.appendChild(meta);
 
     const actions = document.createElement("div");
+    actions.className = "actions-cell";
     if (editMode) {
       if (sortMode === "manual") {
         const up = document.createElement("button"); up.className = "btn"; up.textContent = "↑";
@@ -175,6 +115,30 @@ function render(list, { editMode = false, settings, sortMode, totalLive }) {
         up.addEventListener("click", () => move(item.id, -1));
         down.addEventListener("click", () => move(item.id, +1));
       }
+
+      // Per-item expiry selector (dark themed)
+      const sel = document.createElement("select");
+      sel.className = "btn-select";
+      sel.title = "Expiry for this item";
+      sel.innerHTML = `
+        <option value="default">⏱ Default</option>
+        <option value="1h">1 hour</option>
+        <option value="1d">1 day</option>
+        <option value="1w">1 week</option>
+        <option value="never">Never</option>
+      `;
+      // Initial value
+      if (typeof item.expiresAt !== "number" || item.expiresAt <= 0) {
+        sel.value = "never";
+      } else {
+        sel.value = "default";
+      }
+      sel.addEventListener("change", async (e) => {
+        await setItemExpiry(item.id, e.target.value, settings);
+        await load();
+      });
+      actions.appendChild(sel);
+
       const del = document.createElement("button"); del.className = "btn danger"; del.textContent = "Delete";
       actions.appendChild(del);
       del.addEventListener("click", () => removeItem(item.id));
@@ -227,6 +191,30 @@ async function removeItem(id) {
   await load();
 }
 
+async function setItemExpiry(id, choice, settings) {
+  const { tempTabs } = await chrome.storage.local.get(["tempTabs"]);
+  const list = (tempTabs || []).slice();
+  const idx = list.findIndex(i => i.id === id);
+  if (idx === -1) return;
+
+  const now = Date.now();
+  const defHours = (settings && settings.retentionHours) || 24;
+
+  if (choice === "never") {
+    delete list[idx].expiresAt; // pinned: no auto-expiry
+  } else if (choice === "default") {
+    list[idx].expiresAt = now + defHours * 3600 * 1000; // from now using default
+  } else if (choice === "1h") {
+    list[idx].expiresAt = now + 3600000;
+  } else if (choice === "1d") {
+    list[idx].expiresAt = now + 86400000;
+  } else if (choice === "1w") {
+    list[idx].expiresAt = now + 604800000;
+  }
+
+  await chrome.storage.local.set({ tempTabs: list });
+}
+
 async function clearExpired() {
   await chrome.runtime.sendMessage({ type: "tt:cleanup" });
   await load();
@@ -235,19 +223,6 @@ async function clearExpired() {
 async function clearAll() {
   if (!confirm("Clear all saved items?")) return;
   await chrome.storage.local.set({ tempTabs: [], manualOrder: [] });
-  await load();
-}
-
-async function updateExpiry(id, expiresAt) {
-  const { tempTabs } = await chrome.storage.local.get(["tempTabs"]);
-  if (!tempTabs) return;
-  const nextTabs = tempTabs.map(tab => {
-    if (tab.id === id) {
-      return { ...tab, expiresAt };
-    }
-    return tab;
-  });
-  await chrome.storage.local.set({ tempTabs: nextTabs });
   await load();
 }
 
