@@ -52,15 +52,19 @@ function getExpiryPreset(item, settings) {
   const now = Date.now();
   const remaining = item.expiresAt - now;
 
-  const H = 3600000; // 1 hour
-  const PRESETS = [1, 2, 6, 12, 24, 48, 72, 168];
-  const TOL = 5 * 60 * 1000; // 5 minutes tolerance
+  // Preset durations
+  const H = 3600000;       // 1 hour
+  const D = 86400000;      // 1 day
+  const W = 604800000;     // 1 week
 
-  for (const hrs of PRESETS) {
-    if (Math.abs(remaining - hrs * H) <= TOL) return String(hrs);
-  }
+  // Tolerance to account for render delays / small drift
+  const TOL = 5 * 60 * 1000; // 5 minutes
 
-  // Otherwise treat as default (settings-based) or some custom value
+  if (Math.abs(remaining - H) <= TOL) return "1h";
+  if (Math.abs(remaining - D) <= TOL) return "1d";
+  if (Math.abs(remaining - W) <= TOL) return "1w";
+
+  // Otherwise treat as default (settings-based) or a custom value
   return "default";
 }
 
@@ -141,21 +145,13 @@ function render(list, { editMode = false, settings, sortMode, totalLive }) {
       sel.title = "Expiry for this item";
       sel.innerHTML = `
         <option value="default">⏱ Default</option>
-        <option value="1">1 hour</option>
-        <option value="2">2 hours</option>
-        <option value="6">6 hours</option>
-        <option value="12">12 hours</option>
-        <option value="24">24 hours</option>
-        <option value="48">48 hours</option>
-        <option value="72">72 hours</option>
-        <option value="168">7 days</option>
+        <option value="1h">1 hour</option>
+        <option value="1d">1 day</option>
+        <option value="1w">1 week</option>
         <option value="never">Never</option>
       `;
-      // Initial value prefers stored preset if available, otherwise derive from expiresAt
-      const initialPreset = (item.expiryPreset && typeof item.expiryPreset === "string")
-        ? item.expiryPreset
-        : getExpiryPreset(item, settings);
-      sel.value = initialPreset;
+      // Initial value based on current expiresAt (sticky to 1h/1d/1w when chosen)
+      sel.value = getExpiryPreset(item, settings);
       sel.addEventListener("change", async (e) => {
         await setItemExpiry(item.id, e.target.value, settings);
         await load();
@@ -225,16 +221,14 @@ async function setItemExpiry(id, choice, settings) {
 
   if (choice === "never") {
     delete list[idx].expiresAt; // pinned: no auto-expiry
-    list[idx].expiryPreset = "never";
   } else if (choice === "default") {
-    list[idx].expiresAt = now + defHours * 3600000; // from now using default hours
-    list[idx].expiryPreset = "default";
-  } else {
-    const hrs = Number(choice);
-    if (!Number.isNaN(hrs) && hrs > 0) {
-      list[idx].expiresAt = now + hrs * 3600000;
-      list[idx].expiryPreset = String(hrs);
-    }
+    list[idx].expiresAt = now + defHours * 3600 * 1000; // from now using default
+  } else if (choice === "1h") {
+    list[idx].expiresAt = now + 3600000;
+  } else if (choice === "1d") {
+    list[idx].expiresAt = now + 86400000;
+  } else if (choice === "1w") {
+    list[idx].expiresAt = now + 604800000;
   }
 
   await chrome.storage.local.set({ tempTabs: list });
