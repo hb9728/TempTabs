@@ -37,8 +37,16 @@
     <ul id="list" class="list" aria-live="polite"></ul>
 
     <footer class="bottom">
-      <button id="clearExpired" class="link">Clear expired</button>
-      <button id="clearAll" class="link danger">Clear all</button>
+      <div class="footer-left">
+        <label class="toggle">
+          <input type="checkbox" id="hideExpiredToggle" checked>
+          Hide expired
+        </label>
+      </div>
+      <div class="footer-right">
+        <button id="clearExpired" class="link">Clear expired</button>
+        <button id="clearAll" class="link danger">Clear all</button>
+      </div>
     </footer>
   </div>
 
