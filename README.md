@@ -51,6 +51,14 @@ Perfect for keeping track of links you only need temporarily — like research, 
 
 ---
 
+## 📝 Notes
+
+- Default expiry is **24 hours** (changeable in Settings).
+- Per-item expiry options include: **1h, 2h, 6h, 12h, 24h, 48h, 72h, 7d, Never**.
+- When the store is full (**500 items**), the **oldest item is dropped** on the next add.
+
+---
+
 ## 🚀 Development
 
 - **popup.html / popup.css / popup.js** – main UI and logic
