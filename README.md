@@ -62,6 +62,7 @@ To make changes:
 git clone https://github.com/yourusername/temptabs.git
 cd temptabs
 # edit files, then reload the extension in your browser
+```
 
 ## License
 
