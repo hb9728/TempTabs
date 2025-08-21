@@ -26,12 +26,24 @@ async function setTempTabs(tempTabs) {
   await chrome.storage.local.set({ tempTabs });
 }
 
+/**
+ * Periodic housekeeping (alarm/startup):
+ * - DO NOT delete expired items (so they can be shown/edited in the popup)
+ * - Only refresh badge
+ */
 async function cleanupExpired() {
+  await updateBadge();
+}
+
+/**
+ * Manual purge (invoked by popup's "Clear expired"):
+ * - Permanently remove expired items
+ */
+async function purgeExpired() {
   const now = Date.now();
   let list = await getTempTabs();
-  const before = list.length;
-  list = list.filter(item => !item.expiresAt || item.expiresAt > now);
-  if (list.length !== before) await setTempTabs(list);
+  const next = (list || []).filter(item => !item.expiresAt || item.expiresAt > now);
+  await setTempTabs(next);
   await updateBadge();
 }
 
@@ -40,10 +52,13 @@ async function addTempTab({ url, title }) {
   const now = Date.now();
   const expiresAt = now + settings.retentionHours * 3600 * 1000;
   let list = await getTempTabs();
+
+  // Enforce cap, preferring to drop the oldest item
   if (list.length >= MAX_ITEMS) {
     list.sort((a, b) => a.addedAt - b.addedAt);
     list = list.slice(1);
   }
+
   const id = `${now}-${Math.random().toString(36).slice(2, 8)}`;
   list.push({ id, url, title: title || url, domain: domainFromUrl(url), addedAt: now, expiresAt });
   await setTempTabs(list);
@@ -53,7 +68,7 @@ async function addTempTab({ url, title }) {
 async function updateBadge() {
   const list = await getTempTabs();
   const now = Date.now();
-  const live = list.filter(item => !item.expiresAt || item.expiresAt > now);
+  const live = (list || []).filter(item => !item.expiresAt || item.expiresAt > now);
   const count = live.length;
   if (count > 0) {
     chrome.action.setBadgeText({ text: String(count) });
@@ -91,7 +106,7 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
 
 chrome.alarms.onAlarm.addListener(async (alarm) => {
   if (alarm.name === "tt-cleanup") {
-    await cleanupExpired();
+    await cleanupExpired(); // no deletion on alarm
   }
 });
 
@@ -105,7 +120,8 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     return true;
   }
   if (msg.type === "tt:cleanup") {
-    cleanupExpired().then(() => sendResponse({ ok: true }));
+    // Popup's "Clear expired" → actually purge
+    purgeExpired().then(() => sendResponse({ ok: true }));
     return true;
   }
 });
