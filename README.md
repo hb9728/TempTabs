@@ -62,8 +62,3 @@ To make changes:
 git clone https://github.com/yourusername/temptabs.git
 cd temptabs
 # edit files, then reload the extension in your browser
-```
-
-## License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
