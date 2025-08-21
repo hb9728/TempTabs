@@ -80,6 +80,10 @@ function render(list, { editMode = false, settings, sortMode, totalLive }) {
     li.className = "item";
     li.dataset.id = item.id;
 
+    const now = Date.now();
+    const isExpired = !!(item.expiresAt && item.expiresAt <= now);
+    if (isExpired) li.classList.add("expired");
+
     const draggable = editMode && sortMode === "manual";
     li.draggable = draggable;
     if (draggable) {
@@ -119,9 +123,16 @@ function render(list, { editMode = false, settings, sortMode, totalLive }) {
     const meta = document.createElement("div");
     meta.className = "meta";
     const hasExpiry = typeof item.expiresAt === "number" && item.expiresAt > 0;
-    const expText = hasExpiry ? `expires ${new Date(item.expiresAt).toLocaleString()}` : "no expiry";
+    let expText = hasExpiry ? `expires ${new Date(item.expiresAt).toLocaleString()}` : "no expiry";
     meta.textContent = `${item.domain} • added ${fmtDate(item.addedAt)} • ${expText}`;
-
+    // add "Expired" pill when expired
+    if (isExpired) {
+      const ex = document.createElement("span");
+      ex.className = "expired-tag";
+      ex.textContent = "Expired";
+      meta.appendChild(document.createTextNode(" "));
+      meta.appendChild(ex);
+    }
     main.appendChild(meta);
 
     const actions = document.createElement("div");
@@ -135,7 +146,7 @@ function render(list, { editMode = false, settings, sortMode, totalLive }) {
         down.addEventListener("click", () => move(item.id, +1));
       }
 
-      // Per-item expiry selector (dark themed)
+      // Per-item expiry selector
       const sel = document.createElement("select");
       sel.className = "btn-select";
       sel.title = "Expiry for this item";
@@ -214,31 +225,48 @@ async function removeItem(id) {
   await load();
 }
 
+/* ------ Anchor per‑item expiry to addedAt + confirm if in past ------ */
 async function setItemExpiry(id, choice, settings) {
   const { tempTabs } = await chrome.storage.local.get(["tempTabs"]);
   const list = (tempTabs || []).slice();
   const idx = list.findIndex(i => i.id === id);
   if (idx === -1) return;
 
-  const now = Date.now();
+  const base = typeof list[idx].addedAt === "number" ? list[idx].addedAt : Date.now(); // anchor to creation time
   const defHours = (settings && settings.retentionHours) || 24;
+
+  let newExpiry = null;
 
   if (choice === "never") {
     delete list[idx].expiresAt; // pinned: no auto-expiry
     list[idx].expiryPreset = "never";
   } else if (choice === "default") {
-    list[idx].expiresAt = now + defHours * 3600000; // from now using default hours
+    newExpiry = base + defHours * 3600000;
+    if (newExpiry <= Date.now()) {
+      const ok = confirm("That would make this item expired now. Continue?");
+      if (!ok) return;
+    }
+    list[idx].expiresAt = newExpiry;
     list[idx].expiryPreset = "default";
   } else {
     const hrs = Number(choice);
     if (!Number.isNaN(hrs) && hrs > 0) {
-      list[idx].expiresAt = now + hrs * 3600000;
+      newExpiry = base + hrs * 3600000;
+
+      // if this new expiry is already in the past, confirm before saving
+      if (newExpiry <= Date.now()) {
+        const ok = confirm("That would make this item expired now. Continue?");
+        if (!ok) return; // user cancelled → do not save changes
+      }
+
+      list[idx].expiresAt = newExpiry;
       list[idx].expiryPreset = String(hrs);
     }
   }
 
   await chrome.storage.local.set({ tempTabs: list });
 }
+/* ------------------------------------------------------------ */
 
 async function clearExpired() {
   await chrome.runtime.sendMessage({ type: "tt:cleanup" });
@@ -252,15 +280,39 @@ async function clearAll() {
 }
 
 async function load() {
-  const { tempTabs, settings, sortMode, manualOrder } = await chrome.storage.local.get(["tempTabs", "settings", "sortMode", "manualOrder"]);
+  // NOTE: now supports hide/show expired via stored flag `hideExpired`
+  const { tempTabs, settings, sortMode, manualOrder, hideExpired } =
+    await chrome.storage.local.get(["tempTabs", "settings", "sortMode", "manualOrder", "hideExpired"]);
+
   const now = Date.now();
-  const live = (tempTabs || []).filter(i => !i.expiresAt || i.expiresAt > now);
-  const totalLive = live.length;
-  const filtered = state.filter ? live.filter(i => matchesQuery(i, state.filter)) : live;
-  const sorted = sortList(filtered, sortMode || "newest", manualOrder || []);
+  const all = (tempTabs || []);
+  const totalLive = all.filter(i => !i.expiresAt || i.expiresAt > now).length;
+
+  // Apply search first, then hide-expired
+  let view = state.filter ? all.filter(i => matchesQuery(i, state.filter)) : all;
+  const hide = (hideExpired !== false); // default: hide expired
+  if (hide) {
+    view = view.filter(i => !i.expiresAt || i.expiresAt > now);
+  }
+
+  const sorted = sortList(view, sortMode || "newest", manualOrder || []);
   render(sorted, { editMode: state.editMode, settings, sortMode: sortMode || "newest", totalLive });
-  document.getElementById("sortSelect").value = sortMode || "newest";
-  document.getElementById("searchInput").value = state.filter;
+
+  const sortSel = document.getElementById("sortSelect");
+  if (sortSel) sortSel.value = sortMode || "newest";
+
+  const searchEl = document.getElementById("searchInput");
+  if (searchEl) searchEl.value = state.filter;
+
+  // Wire optional toggle if present in DOM
+  const toggle = document.getElementById("hideExpiredToggle");
+  if (toggle) {
+    toggle.checked = hide;
+    toggle.onchange = async (e) => {
+      await chrome.storage.local.set({ hideExpired: e.target.checked });
+      await load();
+    };
+  }
 }
 
 document.addEventListener("DOMContentLoaded", async () => {

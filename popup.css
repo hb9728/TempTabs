@@ -32,7 +32,7 @@ body { margin: 0; font: 14px/1.3 system-ui, -apple-system, Segoe UI, Roboto, san
 .btn:hover { border-color: var(--accent); }
 .btn.danger { border-color: #70343b; color: #ffd2d2; }
 .actions-cell { display:flex; align-items:center; gap:6px; }
-.bottom { display:flex; gap:8px; padding:8px 12px; justify-content:flex-end; border-top:1px solid #1c2030; background:var(--panel); }
+.bottom { display:flex; justify-content:space-between; align-items:center; padding:8px 12px; border-top:1px solid #1c2030; background:var(--panel); }
 .link { background:transparent; border: none; color: var(--muted); cursor: pointer; text-decoration: underline; }
 .link.danger { color: var(--danger); }
 .dragging { opacity:.5; }
@@ -54,3 +54,35 @@ body { margin: 0; font: 14px/1.3 system-ui, -apple-system, Segoe UI, Roboto, san
   border-color: var(--accent);
 }
 .btn-select:focus { outline: none; box-shadow: 0 0 0 2px rgba(106,161,255,0.25); }
+
+/* === NEW STYLES FOR EXPIRED ITEMS === */
+.item.expired {
+  opacity: 0.5;
+  background: #0d0f14;
+}
+.item.expired a {
+  color: var(--muted);
+}
+.expired-tag {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 2px 5px;
+  font-size: 11px;
+  border-radius: 6px;
+  background: #3a3f55;
+  color: #ff8080;
+  text-transform: uppercase;
+  font-weight: 600;
+}
+
+/* Footer checkbox alignment */
+.footer-left label {
+  font-size: 13px;
+  color: var(--muted);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.footer-left input[type="checkbox"] {
+  accent-color: var(--accent);
+}
